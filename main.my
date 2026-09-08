@@ -1,0 +1,70 @@
+import * as cli from "std/cli";
+import * as text from "std/text";
+
+fn matches(line: string, pattern: string): bool {
+  return text.contains(line, pattern);
+}
+
+fn formatted(name: string, number: int, line: string): string {
+  return $"{name}:{number}:{line}";
+}
+
+fn search(name: string, pattern: string, limit: int): Result<bool, string> {
+  const input = openInput(name)?;
+  defer closeInput(input);
+  let number = 0;
+  let found = false;
+  while const line = readInput(input, limit)? {
+    number += 1;
+    if matches(line, pattern) {
+      emit(formatted(name, number, line))?;
+      found = true;
+    }
+  }
+  return Ok(found);
+}
+
+fn run(parsed: Request, pattern: string, names: []string): Result<bool, string> {
+  let found = false;
+  for name in names {
+    const matched = search(name, pattern, parsed.maxLine).mapError((error) => $"{name}: {error}")?;
+    found = matched || found;
+  }
+  flush()?;
+  return Ok(found);
+}
+
+fn main(arguments: []string): int {
+  const parsed = match request(
+    arguments,
+    "marimay-grep",
+    "Буквальный поиск строк. ФАЙЛ - означает stdin.",
+    [
+      cli.positional("pattern", false, false, "подстрока; пустая совпадает с любой строкой"),
+      cli.positional("input", false, true, "один или несколько файлов либо -"),
+    ],
+  ) {
+    Ok(value) => value,
+    Err(error) => {
+      return fail("marimay-grep", error, 2);
+    },
+  };
+  if parsed.help {
+    return match flush() {
+      Ok(_) => 0,
+      Err(error) => fail("marimay-grep", error, 2),
+    };
+  }
+  const patterns = cli.positionalValues(parsed.parsed, "pattern");
+  const names = cli.positionalValues(parsed.parsed, "input");
+  if patterns.length() != 1 || names.length() == 0 {
+    return fail("marimay-grep", "Нужны ШАБЛОН и ФАЙЛ; см. --help", 2);
+  }
+  return match run(parsed, patterns[0], names) {
+    Ok(found) => match found {
+      true => 0,
+      false => 1,
+    },
+    Err(error) => fail("marimay-grep", error, 2),
+  };
+}

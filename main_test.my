@@ -1,0 +1,14 @@
+@test
+fn unicodeAndLiteralPatterns(): void {
+  expect.equal(matches("Привет 🌿", "🌿"), true);
+  expect.equal(matches("Привет", "привет"), false);
+  expect.equal(matches("a.*b", ".*"), true);
+  expect.equal(matches("ab", ".*"), false);
+  expect.equal(matches("", ""), true);
+  expect.equal(matches("a\0b", "\0"), true);
+}
+
+@test
+fn exactOutputLocation(): void {
+  expect.equal(formatted("файл ü", 9, "данные"), "файл ü:9:данные");
+}
